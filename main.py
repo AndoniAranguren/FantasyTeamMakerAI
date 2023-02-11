@@ -10,6 +10,7 @@ from tournament import Tournament
 
 
 def generate_player_pool(player_amount):
+    rnd.seed(100)
     hr = [1, 1, 1, 1]
     ar = [0, 1, 1, 1]
     sr = [0, 0, 1, 1]

@@ -54,8 +54,7 @@ class Team:
             return -3
 
         with concurrent.futures.ThreadPoolExecutor() as tpe:
-            results = [tpe.submit(player_composition.compute_player_composition, player_comp)
-                       for player_comp in player_all_compositions]
+            results = [tpe.submit(player_comp.evaluate_player_composition, ) for player_comp in player_all_compositions]
             composition_evaluation = [f.result() for f in concurrent.futures.as_completed(results)]
 
         composition_without_failed = [x for x in composition_evaluation if x > 0]

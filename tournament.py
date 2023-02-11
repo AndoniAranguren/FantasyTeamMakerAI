@@ -74,7 +74,7 @@ class Tournament:
             return min(score)
 
     def evaluate_team_composition(self):
-        with ThreadPoolExecutor() as executor:
+        with ThreadPoolExecutor(max_workers=len(self.team_list)) as executor:
             results = [executor.submit(team.evaluate_positions2, self.position_constrains) for team in self.team_list]
             score = [f.result() for f in as_completed(results)]
         return min(score)
