@@ -64,7 +64,6 @@ class Tournament:
 
     def perform_move(self):
         self.moves[rnd.randint(0, len(self.moves) - 1)]()
-
     def evaluate_referees(self):
         valid = [team.constrains_referees(self.referee_constrains) for team in self.team_list]
         if sum([True if x < 0 else False for x in valid]) > 0:
