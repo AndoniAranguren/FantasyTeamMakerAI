@@ -34,18 +34,28 @@ class Team:
 
     def get_positions(self): return sum([player.positions for player in self.player_list])
 
+    def constrains_genders(self, max_gender: int = 4):
+        unique_genders = set([x.gender for x in self.player_list])
+        gender_count = [[x.gender for x in self.player_list].count(gender) for gender in unique_genders]
+        max_gender_count = [gender if gender <= max_gender else max_gender for gender in gender_count]
+        max_combinations = sum(max_gender_count)
+        if max_combinations < 7:
+            return -1
+        return max_combinations
+
     def constrains_referees(self, requisites: [int]):
-        doesnt_fullfill = min(self.get_referee_titles() - np.array(requisites))
-        return doesnt_fullfill
+        return min(self.get_referee_titles() - np.array(requisites))
+
+    def constrains_positions_naive(self, requisites: [int]):
+        return min(self.get_positions() - requisites)
 
     def constrains_positions(self, requisites: [int]):
         doesnt_fullfill = min(self.get_positions() - np.array(requisites))
         list(itertools.combinations(self.player_list, 7))
         return doesnt_fullfill
 
-    def evaluate_referees(self, requisites: [int]): return sum(self.get_referee_titles() / requisites)
-
-    def evaluate_positions(self, requisites: [int]): return sum(self.get_positions() / requisites)
+    def evaluate_referees(self, requisites: [int]):
+        return sum(self.get_referee_titles() / requisites)
 
     def evaluate_positions2(self, requisites: [int]):
         player_all_compositions = [player_composition.PlayerComposition(x, requisites)

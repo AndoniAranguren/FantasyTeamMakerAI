@@ -64,15 +64,27 @@ class Tournament:
 
     def perform_move(self):
         self.moves[rnd.randint(0, len(self.moves) - 1)]()
+
     def evaluate_referees(self):
-        valid = [team.constrains_referees(self.referee_constrains) for team in self.team_list]
-        if sum([True if x < 0 else False for x in valid]) > 0:
-            return sum([x if x < 0 else 0 for x in valid])
-        else:
-            score = np.array([team.evaluate_referees(self.referee_constrains) for team in self.team_list])
-            return min(score)
+        """Referee constrains will be passed when all teams return positive numbers"""
+        results = [team.constrains_referees(self.referee_constrains) for team in self.team_list]
+        negative = [x for x in results if x < 0]
+        if negative:
+            return sum(negative)
+        return min(results)
 
     def evaluate_team_composition(self):
+        CONSTRAIN_GENDER_RULE = 4
+        results = [team.constrains_genders(CONSTRAIN_GENDER_RULE) for team in self.team_list]
+        negative = [x for x in results if x < 0]
+        if negative:
+            return sum(negative) * 3
+
+        results = [team.constrains_positions_naive(self.position_constrains) for team in self.team_list]
+        negative = [x for x in results if x < 0]
+        if negative:
+            return sum(negative) * 2
+
         with ThreadPoolExecutor(max_workers=len(self.team_list)) as executor:
             results = [executor.submit(team.evaluate_positions2, self.position_constrains) for team in self.team_list]
             score = [f.result() for f in as_completed(results)]

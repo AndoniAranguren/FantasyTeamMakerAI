@@ -111,7 +111,7 @@ def main():
                      f"{rnd_seed}seed",
                      f"{iterations}iterations"])
     figure.savefig(project_path+"/analysis/"+file+".png")
-    result = best_tournament_setting.__str__()
+    result = best_tournament_setting[0].__str__()
     with open(project_path+"/analysis/"+file+".txt", "w") as text_file:
         text_file.write(result)
 
