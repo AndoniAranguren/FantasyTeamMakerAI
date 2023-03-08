@@ -64,7 +64,7 @@ class PlayerComposition:
         return max(count_players.values())
 
     def factor_team_experience(self):
-        team_experience = [[player.experience for player in team_subcomp] for team_subcomp in self.team_subcompositions]
+        team_experience = [np.sum([player.experience for player in team_subcomp]) for team_subcomp in self.team_subcompositions]
         return np.mean(team_experience)
 
     def __evaluate__(self):

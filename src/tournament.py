@@ -83,7 +83,7 @@ class Tournament:
         # Constrain analysis
         score = self.evaluate_constrains() * 1
         if score < 0:
-            return score
+            return score, None
 
         # Multifactorial analysis
         with ThreadPoolExecutor(max_workers=len(self.team_list)) as executor:
@@ -93,20 +93,22 @@ class Tournament:
 
         constrains_not_fullfilled = [scores[0] for scores in scores_team_comp if scores[0] != 0]
         if len(constrains_not_fullfilled) > 0:
-            return np.average(constrains_not_fullfilled)
+            return np.average(constrains_not_fullfilled), None
 
         factors = np.array([scores[1] for scores in scores_team_comp]).T
-        w_team_amount = 0.5
-        w_player_dep = 0.2
-        w_team_exp = 0.3
+        w_team_amount = 0.3
+        w_player_dep = 0.5
+        w_team_exp = 0.1
 
         max_combinations = math.comb(MAX_PLAYERS_IN_TEAM, PLAYER_MINIMUM)
-        f_team_amount = 1/np.std(factors[0]/max_combinations)
+        f_team_amount = 1 - np.std(factors[0]/max_combinations)
         f_player_dep = 1 - round(max(factors[1])*1000)/1000
-        f_team_exp = 1/np.std(factors[2]/MAX_EXP)
-        return sum([f_team_amount * w_team_amount,
-                    f_player_dep * w_player_dep,
-                    f_team_exp * w_team_exp])
+        f_team_exp = 1 - np.std(factors[2]/(MAX_EXP*PLAYER_MINIMUM))
+
+        weighted_factors = [f_team_amount * w_team_amount,
+                            f_player_dep * w_player_dep,
+                            f_team_exp * w_team_exp]
+        return sum(weighted_factors), weighted_factors
 
     def initialize_state(self):
         for i in range(self.team_amount - len(self.team_list)):

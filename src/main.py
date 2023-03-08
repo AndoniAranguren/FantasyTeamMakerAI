@@ -55,13 +55,15 @@ def generate_player_pool(player_amount, rnd_seed):
 
 
 def improve_tournament(best_evaluation, best_tournament_setting, same_score_count, moves):
+    return_factors = [None, None, None]
     time1 = time.time()
     new_tournament_setting = copy.deepcopy(best_tournament_setting[0])
     for m in range(moves):
         new_tournament_setting.perform_move()
 
-    evaluation = new_tournament_setting.evaluate_tournament()
+    evaluation, weighted_factors = new_tournament_setting.evaluate_tournament()
     if evaluation > best_evaluation[0]:
+        return_factors = weighted_factors if weighted_factors else return_factors
         best_evaluation[0] = evaluation
         best_tournament_setting[0] = new_tournament_setting
         same_score_count[0] = 0
@@ -69,7 +71,7 @@ def improve_tournament(best_evaluation, best_tournament_setting, same_score_coun
         same_score_count[0] += 1
     time2 = time.time()
     execution_time = (time2-time1)*1000.0
-    return execution_time
+    return execution_time, return_factors
 
 
 def optimize_tournament(player_pool: int, team_amount: int, iterations: int = 1000, moves: int = 5, stop_same: int = 500):
@@ -77,19 +79,21 @@ def optimize_tournament(player_pool: int, team_amount: int, iterations: int = 10
     global analysis
     analysis = Analysis(iterations)
     best_tournament_setting = [Tournament(player_pool, team_amount)]
-    best_evaluation = [best_tournament_setting[0].evaluate_tournament()]
+    best_evaluation = [best_tournament_setting[0].evaluate_tournament()[0]]
 
     same_score_count = [0]
+    w_fact_last = [None, None, None]
     for i in range(iterations):
         # Break the loop if we already have a valid score but haven't improved in a long while
         if best_evaluation[0] >= 0 and same_score_count[0] >= stop_same:
             break
 
-        execution_time = improve_tournament(best_evaluation, best_tournament_setting, same_score_count, moves)
-
+        execution_time, w_fact = improve_tournament(best_evaluation, best_tournament_setting, same_score_count, moves)
+        w_fact_last = w_fact if w_fact[0] is not None else w_fact_last
         analysis.add_execution_time(execution_time)
         analysis.add_same_score_count(same_score_count[0])
         analysis.add_improvement(best_evaluation[0])
+        analysis.add_factors(w_fact_last)
         analysis.print_information()
         analysis.next_iteration()
     return best_tournament_setting
@@ -99,7 +103,7 @@ def main():
     player_amount = 75
     team_amount = 5
     rnd_seed = 100
-    iterations = 5000
+    iterations = 500
     player_pool = generate_player_pool(player_amount, rnd_seed=rnd_seed)
     best_tournament_setting = optimize_tournament(player_pool, team_amount, iterations=iterations)
     figure, ax = analysis.plot_analysis()

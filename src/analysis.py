@@ -9,6 +9,7 @@ class Analysis:
         self.improvement = np.empty(iterations)
         self.execution_time = np.empty(iterations)
         self.same_score_count = np.empty(iterations)
+        self.factors = np.empty(iterations)
 
     def add_improvement(self, improvement):
         self.improvement[self.iteration] = improvement
@@ -18,6 +19,12 @@ class Analysis:
 
     def add_same_score_count(self, same_score_count):
         self.same_score_count[self.iteration] = int(same_score_count)
+
+    def add_factors(self, w_fact):
+        if len(w_fact) != len(self.factors):
+            self.factors = [np.empty(len(self.factors)) for x in w_fact]
+        for i, w_f in enumerate(w_fact):
+            self.factors[i][self.iteration] = w_f
 
     def next_iteration(self):
         self.iteration += 1
@@ -29,12 +36,19 @@ class Analysis:
 
     def plot_analysis(self, figure=None, ax=None):
         columns = ["Improvement", "Execution time", "Same score count"]
-        df = pd.DataFrame(np.array([self.improvement, self.execution_time, self.same_score_count]).T, columns=columns)
+        col_factors = ["Factor team amounts", "Factor player dependency", "Factor team exp"]
+        df = pd.DataFrame(np.array([self.improvement, self.execution_time, self.same_score_count]+self.factors).T,
+                          columns=columns+col_factors)
         if not figure:
-            figure, ax = plt.subplots(len(columns))
+            figure, ax = plt.subplots(len(columns)+1, sharex=True)
             plt.tight_layout(pad=2)
 
         for i in range(len(columns)):
             ax[i].plot(df[columns[i]])
             ax[i].set_title(columns[i])
+
+        ax[-1].plot(df[col_factors], label=col_factors)
+        ax[-1].set_title("Factors")
+        ax[-1].set_xlim([0, self.iteration])
+        ax[-1].legend()
         return figure, ax
