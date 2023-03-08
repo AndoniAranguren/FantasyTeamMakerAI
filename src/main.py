@@ -11,7 +11,7 @@ from analysis import Analysis
 from player import Player
 from tournament import Tournament
 
-analysis = None
+analysis = Analysis(0)
 
 
 def generate_player_pool(player_amount, rnd_seed):
