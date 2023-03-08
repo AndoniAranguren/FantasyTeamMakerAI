@@ -72,7 +72,7 @@ def improve_tournament(best_evaluation, best_tournament_setting, same_score_coun
     return execution_time
 
 
-def optimize_tournament(player_pool: int, team_amount: int, iterations: int = 10000, moves: int = 5, stop_same: int = 100):
+def optimize_tournament(player_pool: int, team_amount: int, iterations: int = 1000, moves: int = 5, stop_same: int = 500):
     print(f"Optimizing tournament with {team_amount} teams. Max iterations {iterations}.")
     global analysis
     analysis = Analysis(iterations)
@@ -99,7 +99,7 @@ def main():
     player_amount = 75
     team_amount = 5
     rnd_seed = 100
-    iterations = 15
+    iterations = 5000
     player_pool = generate_player_pool(player_amount, rnd_seed=rnd_seed)
     best_tournament_setting = optimize_tournament(player_pool, team_amount, iterations=iterations)
     figure, ax = analysis.plot_analysis()

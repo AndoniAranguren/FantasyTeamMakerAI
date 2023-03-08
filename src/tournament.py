@@ -1,14 +1,14 @@
+import math
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import numpy as np
 import random as rnd
 
 from team import Team
+from src.config import CONSTRAIN_GENDER_RULE, PLAYER_MINIMUM, MAX_PLAYERS_IN_TEAM, MAX_EXP
 
 
 class Tournament:
-    player_minimum = 7
-
     def __init__(self, player_pool, teams, referee_constrains=[1, 2, 3, 6], position_constrains=[1, 2, 3, 1]):
         self.team_list = np.array([])
         self.player_pool = np.array(player_pool)
@@ -65,40 +65,48 @@ class Tournament:
     def perform_move(self):
         self.moves[rnd.randint(0, len(self.moves) - 1)]()
 
-    def evaluate_referees(self):
-        """Referee constrains will be passed when all teams return positive numbers"""
-        results = [team.constrains_referees(self.referee_constrains) for team in self.team_list]
-        negative = [x for x in results if x < 0]
-        if negative:
-            return sum(negative)
-        return min(results)
-
-    def evaluate_team_composition(self):
-        CONSTRAIN_GENDER_RULE = 4
-        results = [team.constrains_genders(CONSTRAIN_GENDER_RULE) for team in self.team_list]
-        negative = [x for x in results if x < 0]
-        if negative:
-            return sum(negative) * 3
-
-        results = [team.constrains_positions_naive(self.position_constrains) for team in self.team_list]
-        negative = [x for x in results if x < 0]
-        if negative:
-            return sum(negative) * 2
-
-        with ThreadPoolExecutor(max_workers=len(self.team_list)) as executor:
-            results = [executor.submit(team.evaluate_positions2, self.position_constrains) for team in self.team_list]
-            score = [f.result() for f in as_completed(results)]
-        return min(score)
+    def evaluate_constrains(self):
+        def neg_amount(array):
+            return [x for x in array if x < 0]
+        constr_list = [[team.constrains_referees(self.referee_constrains) for team in self.team_list],
+                       [team.constrains_genders(CONSTRAIN_GENDER_RULE) for team in self.team_list],
+                       [team.constrains_positions_naive(self.position_constrains) for team in self.team_list]]
+        for i, constr in enumerate(constr_list):
+            negs = neg_amount(constr)
+            if len(negs) > 0:
+                perc_teams_not_fulfilling = len(negs)/len(self.team_list)
+                constr_left_to_fulfill = (len(constr_list) - i)
+                return - perc_teams_not_fulfilling - constr_left_to_fulfill
+        return 0
 
     def evaluate_tournament(self):
-        score = np.array([])
-        score = np.append(score, self.evaluate_referees())
-        score = np.append(score, self.evaluate_team_composition())
-        if sum([True if x < 0 else False for x in score]) > 0:
-            return sum([x if x < 0 else 0 for x in score])
-        else:
-            return sum(score) / len(score)
-        return score
+        # Constrain analysis
+        score = self.evaluate_constrains() * 1
+        if score < 0:
+            return score
+
+        # Multifactorial analysis
+        with ThreadPoolExecutor(max_workers=len(self.team_list)) as executor:
+            results = [executor.submit(team.evaluate_subcompositions, self.position_constrains)
+                       for team in self.team_list]
+            scores_team_comp = [f.result() for f in as_completed(results)]
+
+        constrains_not_fullfilled = [scores[0] for scores in scores_team_comp if scores[0] != 0]
+        if len(constrains_not_fullfilled) > 0:
+            return np.average(constrains_not_fullfilled)
+
+        factors = np.array([scores[1] for scores in scores_team_comp]).T
+        w_team_amount = 0.5
+        w_player_dep = 0.2
+        w_team_exp = 0.3
+
+        max_combinations = math.comb(MAX_PLAYERS_IN_TEAM, PLAYER_MINIMUM)
+        f_team_amount = 1/np.std(factors[0]/max_combinations)
+        f_player_dep = 1 - round(max(factors[1])*1000)/1000
+        f_team_exp = 1/np.std(factors[2]/MAX_EXP)
+        return sum([f_team_amount * w_team_amount,
+                    f_player_dep * w_player_dep,
+                    f_team_exp * w_team_exp])
 
     def initialize_state(self):
         for i in range(self.team_amount - len(self.team_list)):
@@ -113,5 +121,3 @@ class Tournament:
         for teams in self.team_list:
             text += str(teams)
         return text
-
-

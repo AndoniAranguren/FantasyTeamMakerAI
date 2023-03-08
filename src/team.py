@@ -7,6 +7,7 @@ import random as rnd
 
 from player import Player
 import player_composition
+from src.config import PLAYER_MINIMUM, CONSTRAIN_GENDER_RULE
 
 
 class Team:
@@ -34,12 +35,12 @@ class Team:
 
     def get_positions(self): return sum([player.positions for player in self.player_list])
 
-    def constrains_genders(self, max_gender: int = 4):
+    def constrains_genders(self, max_gender: int = CONSTRAIN_GENDER_RULE):
         unique_genders = set([x.gender for x in self.player_list])
         gender_count = [[x.gender for x in self.player_list].count(gender) for gender in unique_genders]
         max_gender_count = [gender if gender <= max_gender else max_gender for gender in gender_count]
         max_combinations = sum(max_gender_count)
-        if max_combinations < 7:
+        if max_combinations < PLAYER_MINIMUM:
             return -1
         return max_combinations
 
@@ -51,27 +52,14 @@ class Team:
 
     def constrains_positions(self, requisites: [int]):
         doesnt_fullfill = min(self.get_positions() - np.array(requisites))
-        list(itertools.combinations(self.player_list, 7))
+        list(itertools.combinations(self.player_list, PLAYER_MINIMUM))
         return doesnt_fullfill
 
     def evaluate_referees(self, requisites: [int]):
         return sum(self.get_referee_titles() / requisites)
 
-    def evaluate_positions2(self, requisites: [int]):
-        player_all_compositions = [player_composition.PlayerComposition(x, requisites)
-                                   for x in itertools.combinations(self.player_list, 7)]
-        if not player_all_compositions:
-            return -3
-
-        with concurrent.futures.ThreadPoolExecutor() as tpe:
-            results = [tpe.submit(player_comp.evaluate_player_composition, ) for player_comp in player_all_compositions]
-            composition_evaluation = [f.result() for f in concurrent.futures.as_completed(results)]
-
-        composition_without_failed = [x for x in composition_evaluation if x > 0]
-        if composition_without_failed:
-            return np.average(composition_without_failed)
-        else:
-            return max(composition_evaluation)
+    def evaluate_subcompositions(self, requisites: [int]):
+        return player_composition.PlayerComposition(self.player_list, requisites).evaluate_player_composition()
 
     def __str__(self):
         names = [player.name for player in self.player_list]

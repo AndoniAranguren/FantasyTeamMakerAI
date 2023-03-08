@@ -1,8 +1,8 @@
 import itertools
 
+import numpy as np
 import result_vault
-
-CONSTRAIN_GENDER_RULE = 4
+from src.config import CONSTRAIN_GENDER_RULE, PLAYER_MINIMUM
 
 
 class PlayerComposition:
@@ -46,21 +46,38 @@ class PlayerComposition:
         return self.team_subcompositions
 
     def constrains_genders(self):
-        for gender_count in self.get_gender_count():
-            if gender_count > CONSTRAIN_GENDER_RULE:
-                return False
-        return True
+        capped_genders = [x if x < CONSTRAIN_GENDER_RULE else CONSTRAIN_GENDER_RULE for x in self.get_gender_count()]
+        return sum(capped_genders) > PLAYER_MINIMUM
 
     def constrains_team_subcompositions(self):
-        return self.get_team_subcompositions() is not None
+        return self.get_team_subcompositions() is not None and len(self.get_team_subcompositions()) > 0
+
+    def factor_team_amount(self):
+        return len(self.team_subcompositions)
+
+    def factor_player_dependency(self):
+        count_players = {player.player_id: 0 for player in self.player_list}
+        total_len = len(self.team_subcompositions)
+        for team_subcomp in self.team_subcompositions:
+            for player in team_subcomp:
+                count_players[player.player_id] += 1 / total_len
+        return max(count_players.values())
+
+    def factor_team_experience(self):
+        team_experience = [[player.experience for player in team_subcomp] for team_subcomp in self.team_subcompositions]
+        return np.mean(team_experience)
 
     def __evaluate__(self):
         if not self.constrains_genders():
-            return -2
+            return -2000, None
         if not self.constrains_team_subcompositions():
-            return -1
-        return len(self.team_subcompositions)
+            return -1000, None
+
+        factor_team_amount = self.factor_team_amount()
+        factor_player_dependency = self.factor_player_dependency()
+        factor_team_experience = self.factor_team_experience()
+
+        return 0, [factor_team_amount, factor_player_dependency, factor_team_experience]
 
     def evaluate_player_composition(self):
         return result_vault.compute_player_composition(self.player_composition_id, self.__evaluate__)
-
