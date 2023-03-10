@@ -11,4 +11,3 @@ class Player:
         self.referee_titles = np.array(referee_titles)
         self.positions = np.array(positions)
         self.experience = experience
-        self.team = None

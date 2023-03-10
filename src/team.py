@@ -19,11 +19,9 @@ class Team:
             self.add_player(player)
 
     def add_player(self, player: Player):
-        player.team = self
         self.player_list = np.append(self.player_list, player)
 
     def remove_player(self, player: Player):
-        player.team = None
         self.player_list = np.delete(self.player_list, np.where(self.player_list == player))
 
     def get_transfer_player(self):
@@ -48,7 +46,10 @@ class Team:
         return min(self.get_referee_titles() - np.array(requisites))
 
     def constrains_positions_naive(self, requisites: [int]):
-        return min(self.get_positions() - requisites)
+        try:
+            return min(self.get_positions() - requisites)
+        except:
+            return -1
 
     def constrains_positions(self, requisites: [int]):
         doesnt_fullfill = min(self.get_positions() - np.array(requisites))

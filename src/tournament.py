@@ -9,10 +9,11 @@ from src.config import CONSTRAIN_GENDER_RULE, PLAYER_MINIMUM, MAX_PLAYERS_IN_TEA
 
 
 class Tournament:
-    def __init__(self, player_pool, teams,
+    def __init__(self, player_pool, teams: int, tournament_id=0,
                  referee_constrains=[1, 2, 3, 6],
                  position_constrains=[1, 2, 3, 1],
                  factors=[0.3, 0.5, 0.1]):
+        self.tournament_id = tournament_id
         self.team_list = np.array([])
         self.player_pool = np.array(player_pool)
         self.referee_constrains = referee_constrains    # [HR, SR, AR, SC]
@@ -23,18 +24,8 @@ class Tournament:
                       self.move_transfer_one_player,
                       self.move_trade_two_players]
 
-        if type(teams) is int:
-            self.team_amount = teams
-            self.initialize_state()
-
-        else:
-            self.team_amount = len(teams)
-            for team in teams:
-                self.add_team(team)
-
-            player_without_team = [player if player.team is None else None for player in player_pool]
-            for player in player_without_team:
-                self.team_list[self.random_team_pos()].add_player(player)
+        self.team_amount = teams
+        self.initialize_state()
 
     def random_team_pos(self):
         return rnd.randint(0, len(self.team_list) - 1)
@@ -53,18 +44,26 @@ class Tournament:
         team2 = self.random_team_pos()
         while team1 == team2:
             team2 = self.random_team_pos()
-        transfer_player = self.team_list[team1].get_transfer_player()
-        self.team_list[team2].add_player(transfer_player)
+        try:
+            transfer_player = self.team_list[team1].get_transfer_player()
+            self.team_list[team2].add_player(transfer_player)
+        except:
+            # This might happen when trying to get a player from an empty team
+            self.move_transfer_one_player()
 
     def move_trade_two_players(self):
         team1 = self.random_team_pos()
         team2 = self.random_team_pos()
         while team1 == team2:
             team2 = self.random_team_pos()
-        transfer_player1 = self.team_list[team1].get_transfer_player()
-        transfer_player2 = self.team_list[team2].get_transfer_player()
-        self.team_list[team2].add_player(transfer_player1)
-        self.team_list[team1].add_player(transfer_player2)
+        try:
+            transfer_player1 = self.team_list[team1].get_transfer_player()
+            transfer_player2 = self.team_list[team2].get_transfer_player()
+            self.team_list[team2].add_player(transfer_player1)
+            self.team_list[team1].add_player(transfer_player2)
+        except:
+            # This might happen when trying to get a player from an empty team
+            self.move_trade_two_players()
 
     def perform_move(self):
         self.moves[rnd.randint(0, len(self.moves) - 1)]()
@@ -112,15 +111,22 @@ class Tournament:
         return sum(weighted_factors)*100, weighted_factors
 
     def initialize_state(self):
+        players_per_team = round(len(self.player_pool)/self.team_amount)
         for i in range(self.team_amount - len(self.team_list)):
-            self.add_team(Team())
+            low = players_per_team*i
+            up = players_per_team*(i+1)
+            self.add_team(Team(self.player_pool[low:up]))
 
-        for player in [player if player.team is None else None for player in self.player_pool]:
-            self.team_list[self.random_team_pos()].add_player(player)
+    def characterize_tournament(self):
+        characterization = [0]*len(self.player_pool)
+        for t, team in enumerate(self.team_list):
+            for player in team.player_list:
+                characterization[player.player_id] = t
+        return characterization
 
     def __str__(self):
         result = self.evaluate_tournament()
-        text = "========= Tournament ==========\n"
+        text = f"========= Tournament({self.tournament_id}) ==========\n"
         text += f"Score is {result[0]}\n" \
                 f"Factor scores {result[1]}\n" \
                 f"with weights {self.factors}"
