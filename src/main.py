@@ -6,9 +6,11 @@ import time
 import datetime
 
 import numpy as np
+import pandas as pd
 
 from analysis import Analysis
 from player import Player
+from src import import_export_tool
 from tournament import Tournament
 
 analysis = Analysis()
@@ -204,7 +206,8 @@ def main():
     leagues_movements = [1, 5, 10]
     clubs_per_league = 4
     autocross = False
-    player_pool = generate_player_pool(player_amount, rnd_seed=rnd_seed)
+    player_pool = import_export_tool.read_players("../data/form emerald.csv")
+    # player_pool = generate_player_pool(player_amount, rnd_seed=rnd_seed)
     # best_tournament_setting = optimize_tournament(player_pool, team_amount, iterations=iterations)
     best_tournament_setting = optimize_tournament_league_metaheuristic(player_pool, team_amount,
                                                                        leagues_movements, clubs_per_league,
