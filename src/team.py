@@ -5,6 +5,7 @@ from collections import Counter
 import numpy as np
 import random as rnd
 
+import config
 from player import Player
 import player_composition
 from src.config import PLAYER_MINIMUM, CONSTRAIN_GENDER_RULE
@@ -25,9 +26,12 @@ class Team:
         self.player_list = np.delete(self.player_list, np.where(self.player_list == player))
 
     def get_transfer_player(self):
-        player = self.player_list[rnd.randint(0, len(self.player_list) - 1)]
-        self.remove_player(player)
-        return player
+        if len(self.player_list) <= config.PLAYER_MINIMUM:
+            return None
+        else:
+            player = self.player_list[rnd.randint(0, len(self.player_list) - 1)]
+            self.remove_player(player)
+            return player
 
     def get_referee_titles(self): return sum([player.referee_titles for player in self.player_list])
 

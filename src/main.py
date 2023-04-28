@@ -125,7 +125,7 @@ def generate_league(player_pool, team_amount, leagues_movements, clubs_per_leagu
 def optimize_tournament_league_metaheuristic(player_pool, team_amount: int,
                                              leagues_movements: [int], clubs_per_league: int,
                                              iterations: int = 1000, stop_same: int = 500,
-                                             autocross: bool =False):
+                                             autocross: bool = False):
     global analysis
     analysis = Analysis(["League", "Club rank"])
     league_list = generate_league(player_pool, team_amount, leagues_movements, clubs_per_league)
@@ -198,17 +198,49 @@ def optimize_tournament(player_pool, team_amount: int, iterations: int = 1000, m
 
 
 def main():
-    player_amount = 75
-    team_amount = 5
+    team_amount = 3
     rnd_seed = 100
-    iterations = 150
+    iterations = 1500
     stop_same = 50
     leagues_movements = [1, 5, 10]
     clubs_per_league = 4
     autocross = False
-    player_pool = import_export_tool.read_players("../data/form emerald.csv")
+    player_pool, df = import_export_tool.read_players("./data/form emerald.csv")
+    player_amount = df.shape[0]
     # player_pool = generate_player_pool(player_amount, rnd_seed=rnd_seed)
     # best_tournament_setting = optimize_tournament(player_pool, team_amount, iterations=iterations)
+    best_tournament_setting = optimize_tournament_league_metaheuristic(player_pool, team_amount,
+                                                                       leagues_movements, clubs_per_league,
+                                                                       iterations, stop_same, autocross)
+    fig, ax = analysis.plot_analysis()
+    fig1, fig2 = analysis.plot_analysis_club()
+    project_path = os.path.dirname(__file__)[:-len("src/")]
+    file = "-".join(["autocross" if autocross else "",
+                     f"{datetime.date.today()}",
+                     f"{player_amount}players",
+                     f"{team_amount}teams",
+                     f"{len(leagues_movements)}leagues",
+                     f"{'_'.join([str(x) for x in leagues_movements])}movement",
+                     f"{rnd_seed}seed",
+                     f"{iterations}iterations"])
+    fig.savefig(project_path + "/analysis/Analysis-tournament_league_info-autocross-" + file + ".png")
+    fig1.savefig(project_path + "/analysis/Analysis-tournament_league-autocross-" + file + ".png")
+    fig2.savefig(project_path + "/analysis/Analysis-tournament_league_top-autocross-" + file + ".png")
+    result = best_tournament_setting.__str__()
+    with open(project_path + "/analysis/Analysis-tournament_league_info-" + file + ".txt", "w") as text_file:
+        text_file.write(result)
+
+
+def main_generate():
+    player_amount = 75
+    team_amount = 2
+    rnd_seed = 100
+    iterations = 1500
+    stop_same = 50
+    leagues_movements = [1, 5, 10]
+    clubs_per_league = 4
+    autocross = False
+    player_pool = generate_player_pool(player_amount, rnd_seed=rnd_seed)
     best_tournament_setting = optimize_tournament_league_metaheuristic(player_pool, team_amount,
                                                                        leagues_movements, clubs_per_league,
                                                                        iterations, stop_same, autocross)

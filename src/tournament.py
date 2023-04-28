@@ -1,3 +1,4 @@
+import itertools
 import math
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -5,14 +6,14 @@ import numpy as np
 import random as rnd
 
 from team import Team
-from src.config import CONSTRAIN_GENDER_RULE, PLAYER_MINIMUM, MAX_PLAYERS_IN_TEAM, MAX_EXP
+from src.config import CONSTRAIN_GENDER_RULE, PLAYER_MINIMUM, MAX_PLAYERS_IN_TEAM, MAX_EXP, REFEREE_CONSTRAINS, POSITION_CONSTRAINS, FACTORS
 
 
 class Tournament:
     def __init__(self, player_pool, teams: int, tournament_id=0,
-                 referee_constrains=[1, 2, 3, 6],
-                 position_constrains=[1, 2, 3, 1],
-                 factors=[0.3, 0.5, 0.1]):
+                 referee_constrains=REFEREE_CONSTRAINS,
+                 position_constrains=POSITION_CONSTRAINS,
+                 factors=FACTORS):
         self.tournament_id = tournament_id
         self.team_list = np.array([])
         self.player_pool = np.array(player_pool)
@@ -39,31 +40,42 @@ class Tournament:
     def move_do_nothing(self):
         pass
 
-    def move_transfer_one_player(self):
-        team1 = self.random_team_pos()
-        team2 = self.random_team_pos()
-        while team1 == team2:
-            team2 = self.random_team_pos()
-        try:
-            transfer_player = self.team_list[team1].get_transfer_player()
-            self.team_list[team2].add_player(transfer_player)
-        except:
-            # This might happen when trying to get a player from an empty team
-            self.move_transfer_one_player()
+    def move_transfer_one_player(self, count=0):
+        if count < 10:
+            pick_team = list(range(len(self.team_list)))
+            rnd.shuffle(pick_team)
+            team1 = pick_team[0]
+            team2 = pick_team[1]
+            try:
+                transfer_player = self.team_list[team1].get_transfer_player()
+                if transfer_player is None:
+                    raise Exception
+                self.team_list[team2].add_player(transfer_player)
+            except:
+                # This might happen when trying to get a player from an empty team
+                self.move_transfer_one_player(count+1)
 
-    def move_trade_two_players(self):
-        team1 = self.random_team_pos()
-        team2 = self.random_team_pos()
-        while team1 == team2:
-            team2 = self.random_team_pos()
-        try:
-            transfer_player1 = self.team_list[team1].get_transfer_player()
-            transfer_player2 = self.team_list[team2].get_transfer_player()
-            self.team_list[team2].add_player(transfer_player1)
-            self.team_list[team1].add_player(transfer_player2)
-        except:
-            # This might happen when trying to get a player from an empty team
-            self.move_trade_two_players()
+    def move_trade_two_players(self, count=0):
+        if count < 10:
+            pick_team = list(range(len(self.team_list)))
+            rnd.shuffle(pick_team)
+            team1 = pick_team[0]
+            team2 = pick_team[1]
+            try:
+                transfer_player1 = self.team_list[team1].get_transfer_player()
+                if transfer_player1 is None:
+                    raise Exception
+
+                transfer_player2 = self.team_list[team2].get_transfer_player()
+                if transfer_player2 is None:
+                    self.team_list[team1].add_player(transfer_player1)
+                    raise Exception
+
+                self.team_list[team2].add_player(transfer_player1)
+                self.team_list[team1].add_player(transfer_player2)
+            except:
+                # This might happen when trying to get a player from an empty team
+                self.move_trade_two_players(count+1)
 
     def perform_move(self):
         self.moves[rnd.randint(0, len(self.moves) - 1)]()

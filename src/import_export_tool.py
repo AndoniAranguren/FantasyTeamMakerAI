@@ -1,7 +1,9 @@
 import random
 
+import numpy as np
 import pandas as pd
 
+from player import Player
 from src import config
 
 
@@ -46,11 +48,9 @@ def cleanup_genders(df):
 
 
 def cleanup_experience(df):
-    print(df[config.IMPORT_HASHTAGS_EXP])
-
-    def function_map(x, col_value):
+    def function_map(x, column_value):
         try:
-            return config.IMPORT_HASHTAGS_EXP_VALUES.get(col_value) if col_value in x else x
+            return config.IMPORT_HASHTAGS_EXP_VALUES.get(column_value) if column_value in x else x
         except TypeError as e:
             return x
 
@@ -58,6 +58,16 @@ def cleanup_experience(df):
         for col_value in config.IMPORT_HASHTAGS_EXP_VALUES:
             df[col_exp] = df[col_exp].apply(lambda x: function_map(x, col_value))
         df[col_exp] = df[col_exp].apply(lambda x: 0 if type(x) == str else x)
+
+    return df
+
+
+def cleanup_positions(df):
+    for hashtag_pos in config.IMPORT_HASHTAGS_POS_ORDER:
+        def function_map(x, hashtag_pos):
+            return 1 if hashtag_pos in x else 0
+        df[hashtag_pos] = df[config.IMPORT_HASHTAGS_POS].apply(lambda x: function_map(x, hashtag_pos))
+    df.drop(columns=[config.IMPORT_HASHTAGS_POS], inplace=True)
     return df
 
 
@@ -81,6 +91,17 @@ def read_players(csv_path):
     df = cleanup_multilanguage_hashtags(df)
     df = cleanup_genders(df)
     df = cleanup_experience(df)
+    df = cleanup_positions(df)
     df = validate_referees(df)
 
+    player_pool = []
+    for index, row in df.iterrows():
+        player = Player(index,
+                        row[config.IMPORT_HASHTAG_NAME],
+                        str(row[config.IMPORT_HASHTAG_GENDER]),
+                        row[config.IMPORT_HASHTAGS_REFS],
+                        row[config.IMPORT_HASHTAGS_POS_ORDER].values,
+                        np.average(row[config.IMPORT_HASHTAGS_EXP]))
+        player_pool += [player]
 
+    return player_pool, df
