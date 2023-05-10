@@ -227,7 +227,8 @@ def main():
     fig1.savefig(project_path + "/analysis/Analysis-tournament_league-autocross-" + file + ".png")
     fig2.savefig(project_path + "/analysis/Analysis-tournament_league_top-autocross-" + file + ".png")
     result = best_tournament_setting.__str__()
-    with open(project_path + "/analysis/Analysis-tournament_league_info-" + file + ".txt", "w") as text_file:
+    with open(project_path + "/analysis/Analysis-tournament_league_info-" + file + ".txt",
+              "w", encoding="utf-8-sig") as text_file:
         text_file.write(result)
 
 
