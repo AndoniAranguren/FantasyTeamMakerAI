@@ -1,4 +1,6 @@
 import copy
+import hashlib
+import json
 import os
 
 import random as rnd
@@ -8,6 +10,7 @@ import datetime
 import numpy as np
 import pandas as pd
 
+import config
 from analysis import Analysis
 from player import Player
 from src import import_export_tool
@@ -81,7 +84,7 @@ def perform_moves(solution: Tournament, moves: int) -> Tournament:
     return new_solution
 
 
-def sort_by_performance(league: [[Tournament, [float,[]]]]):
+def sort_by_performance(league: [[Tournament, [float, []]]]):
     league.sort(key=lambda x: x[1][0], reverse=True)
     return league
 
@@ -125,17 +128,60 @@ def generate_league(player_pool, team_amount, leagues_movements, clubs_per_leagu
     return league_list
 
 
+def check_for_last_iteration(hash_path):
+    embedding_path = f"{hash_path}/solution_embedding.csv"
+    embedding_solution, analysis_saved = None, None
+    if os.path.exists(embedding_path):
+        embedding_solution = pd.read_csv(embedding_path, index_col=0)
+
+    analysis_path = f"{hash_path}/analysis.csv"
+    if os.path.exists(analysis_path):
+        analysis_saved = pd.read_csv(analysis_path, index_col=0)
+
+    return embedding_solution, analysis_saved
+
+
+def read_league(player_pool, team_amount, leagues_movements, clubs_per_league, embedding_solution):
+    leagues = len(leagues_movements)
+    club_list = []
+    for c, embedding in enumerate(embedding_solution.values):
+        club_list += [Tournament(player_pool, team_amount, tournament_id=c, embedding=embedding)]
+        np.random.shuffle(player_pool)
+    club_list = sort_by_performance([[club, club.evaluate_tournament()] for club in club_list])
+    league_list = [club_list[clubs_per_league * i:clubs_per_league * (i + 1)] for i in range(leagues)]
+    return league_list
+
+
+def initialize_execution(player_pool, team_amount, leagues_movements, clubs_per_league, hash_path):
+    embedding_solution, analysis_saved = check_for_last_iteration(hash_path)
+
+    if analysis_saved is not None:
+        analysis = Analysis(["League", "Club rank"], df_saved=analysis_saved)
+    else:
+        analysis = Analysis(["League", "Club rank"])
+    if embedding_solution is not None:
+        league_list = read_league(player_pool, team_amount, leagues_movements, clubs_per_league, embedding_solution)
+    else:
+        league_list = generate_league(player_pool, team_amount, leagues_movements, clubs_per_league)
+    return analysis, league_list, embedding_solution is not None
+
+
 def optimize_tournament_league_metaheuristic(player_pool, team_amount: int,
                                              leagues_movements: [int], clubs_per_league: int,
+                                             hash_path=None, save_temp_reach=50,
                                              iterations: int = 10000, stop_same: int = 250,
                                              autocross: bool = False):
     global analysis
-    analysis = Analysis(["League", "Club rank"])
-    league_list = generate_league(player_pool, team_amount, leagues_movements, clubs_per_league)
+
+    analysis, league_list, from_saved = initialize_execution(player_pool, team_amount,
+                                                             leagues_movements, clubs_per_league, hash_path)
+
     same_score_count = 0
     w_fact_last = [None, None, None]
     last_best = league_list[0][0][1][0]
     for i in range(iterations):
+        if i == 0 and from_saved:
+            i = analysis.iteration
         time1 = time.time()
         # Play this season
         new_league_list = [play_league(league, leagues_movements[i]) for i, league in enumerate(league_list)]
@@ -155,6 +201,7 @@ def optimize_tournament_league_metaheuristic(player_pool, team_amount: int,
         best_evaluation = first_club[1][0]
         w_fact_last = first_club[1][1] if first_club[1][1] is not None else w_fact_last
         time2 = time.time()
+
         execution_time = (time2 - time1) * 1000.0
         for l, league in enumerate(reversed(league_list)):
             for c, club in enumerate(reversed(league)):
@@ -169,6 +216,18 @@ def optimize_tournament_league_metaheuristic(player_pool, team_amount: int,
                 analysis.add_row(row)
         analysis.print_information()
         analysis.next_iteration()
+
+        # Save temps
+        if hash_path and i%save_temp_reach == 0:
+            embedding_list = []
+            for l, league in enumerate(reversed(league_list)):
+                for c, club in enumerate(reversed(league)):
+                    tournament = club[0]
+                    embedding_list += [tournament.get_solution_embedding()]
+            embedding_df = pd.DataFrame(embedding_list, index=["Solution "+str(x) for x in range(len(embedding_list))])
+            embedding_df.to_csv(f"{hash_path}/solution_embedding.csv")
+            analysis.save(hash_path)
+            print("Temporal files saved")
     return league_list[0][0][0]
 
 
@@ -200,6 +259,56 @@ def optimize_tournament(player_pool, team_amount: int, iterations: int = 1000, m
     return best_tournament_setting
 
 
+def create_input_data_hash(file):
+    # BUF_SIZE is totally arbitrary, change for your app!
+    BUF_SIZE = 65536  # lets read stuff in 64kb chunks!
+
+    md5 = hashlib.md5()
+    sha1 = hashlib.sha1()
+
+    with open(file, 'rb') as f:
+        while True:
+            data = f.read(BUF_SIZE)
+            if not data:
+                break
+            md5.update(data)
+            sha1.update(data)
+    hash_value = md5.hexdigest()
+    print("MD5: {0}".format(md5.hexdigest()))
+
+    folder = f"{config.PATHS_SAVE_TEMP_FILES}/{hash_value}"
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
+    return hash_value
+
+
+def create_config_data_hash(config_params, hash_of_file):
+    # BUF_SIZE is totally arbitrary, change for your app!
+    BUF_SIZE = 65536  # lets read stuff in 64kb chunks!
+
+    md5 = hashlib.md5()
+    sha1 = hashlib.sha1()
+
+    json_dump = json.dumps(config_params, sort_keys=True).encode()
+    md5.update(json_dump)
+    sha1.update(json_dump)
+
+    hash_of_config = md5.hexdigest()
+    print("MD5: {0}".format(md5.hexdigest()))
+
+    hash_path = f"{config.PATHS_SAVE_TEMP_FILES}/{hash_of_file}/{hash_of_config}"
+    if not os.path.exists(hash_path):
+        os.makedirs(hash_path)
+
+    return hash_of_config, hash_path
+
+
+def save_config(save_path, **params):
+    with open(f"{save_path}/config.json", "w") as f:
+        json.dump(params, f, sort_keys=True)
+
+
 def main():
     rnd_seed = 43
     iterations = 10000
@@ -210,15 +319,26 @@ def main():
     # team_amount = 3
     # player_pool, df = import_export_tool.read_players("./data/form emerald.csv")
     team_amount = 9
-    player_pool, df = import_export_tool.read_players("../data/Guardians of Bologna - vol4 - With Irene as cap.csv")
-    # team_amount = 8
+    file_path = "../data/Guardians of Bologna - vol4 - With Irene as cap.csv"
+    player_pool, df = import_export_tool.read_players(file_path)
     # player_pool, df = import_export_tool.read_players("../data/Guardians of Bologna - vol4 - Without Irene as cap.csv")
     player_amount = df.shape[0]
-    # player_pool = generate_player_pool(player_amount, rnd_seed=rnd_seed)
-    # best_tournament_setting = optimize_tournament(player_pool, team_amount, iterations=iterations)
+    hash_of_file = create_input_data_hash(file_path)
+    config_params = {"hash_of_file": hash_of_file,
+                     "file_path": file_path,
+                     "team_amount": team_amount,
+                     "leagues_movement": leagues_movements,
+                     "clubs_per_league": clubs_per_league,
+                     "iterations": iterations,
+                     "stop_same": stop_same,
+                     "autocross": autocross}
+    hash_of_config, hash_path = create_config_data_hash(config_params, hash_of_file)
+    save_config(hash_path, config_params=config_params)
     best_tournament_setting = optimize_tournament_league_metaheuristic(player_pool, team_amount,
                                                                        leagues_movements, clubs_per_league,
-                                                                       iterations, stop_same, autocross)
+                                                                       hash_path=hash_path,
+                                                                       iterations=iterations, stop_same=stop_same,
+                                                                       autocross=autocross)
     fig, ax = analysis.plot_analysis()
     fig1, fig2 = analysis.plot_analysis_club()
     project_path = os.path.dirname(__file__)[:-len("src/")]
@@ -251,7 +371,8 @@ def main_generate():
     player_pool = generate_player_pool(player_amount, rnd_seed=rnd_seed)
     best_tournament_setting = optimize_tournament_league_metaheuristic(player_pool, team_amount,
                                                                        leagues_movements, clubs_per_league,
-                                                                       iterations, stop_same, autocross)
+                                                                       iterations=iterations, stop_same=stop_same,
+                                                                       autocross=autocross)
     fig, ax = analysis.plot_analysis()
     fig1, fig2 = analysis.plot_analysis_club()
     project_path = os.path.dirname(__file__)[:-len("src/")]
@@ -271,4 +392,5 @@ def main_generate():
         text_file.write(result)
 
 
-main()
+if __name__ == "__main__":
+    main()

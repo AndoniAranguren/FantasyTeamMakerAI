@@ -2,16 +2,18 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
+import config
+
 
 class Analysis:
     col_control = ["Score", "Execution time", "Same score count"]
     col_factors = ["Factor team amounts", "Factor player dependency", "Factor team exp"]
 
-    def __init__(self, columns=None):
+    def __init__(self, columns=None, df_saved=None):
         self.col_added = columns
         self.cols = set(["Iteration"]+self.col_control+self.col_factors+(columns if columns else []))
-        self.rows = []
-        self.iteration = 0
+        self.rows = df_saved.to_dict('records') if df_saved is not None else []
+        self.iteration = df_saved["Iteration"].max() + 1 if df_saved is not None else 0
 
     def add_row(self, row: dict):
         row.update({"Iteration": self.iteration})
@@ -64,3 +66,7 @@ class Analysis:
         ax[-1].set_xlim([0, self.iteration])
         ax[-1].legend()
         return figure, ax
+
+    def save(self, hash_path):
+        df_evolution = pd.DataFrame(self.rows)
+        df_evolution.to_csv(f"{hash_path}/analysis.csv")

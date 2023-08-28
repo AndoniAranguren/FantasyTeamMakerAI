@@ -10,7 +10,7 @@ from src.config import CONSTRAIN_GENDER_RULE, PLAYER_MINIMUM, MAX_PLAYERS_IN_TEA
 
 
 class Tournament:
-    def __init__(self, player_pool, teams: int, tournament_id=0,
+    def __init__(self, player_pool, teams: int, tournament_id=0, embedding=None,
                  referee_constrains=REFEREE_CONSTRAINS,
                  position_constrains=POSITION_CONSTRAINS,
                  factors=FACTORS):
@@ -26,7 +26,7 @@ class Tournament:
                       self.move_trade_two_players]
 
         self.team_amount = teams
-        self.initialize_state()
+        self.initialize_state(embedding)
 
     def random_team_pos(self):
         return rnd.randint(0, len(self.team_list) - 1)
@@ -124,15 +124,20 @@ class Tournament:
                             f_team_exp * self.factors[2]]
         return sum(weighted_factors)*100, weighted_factors
 
-    def initialize_state(self):
-        players_per_team = round(len(self.player_pool)/self.team_amount)
-        team = 0
+    def initialize_state(self, embedding):
         player_teams = [[] for x in range(self.team_amount)]
-        for player in range(len(self.player_pool)):
-            player_teams[team] += [self.player_pool[player]]
-            team += 1
-            if team >= self.team_amount:
-                team = 0
+        player_pool_by_id = {p.player_id: p for p in self.player_pool}
+        if embedding is not None:
+            for player_id, team in enumerate(embedding):
+                player_teams[team] += [player_pool_by_id[player_id]]
+        else:
+            players_per_team = round(len(self.player_pool)/self.team_amount)
+            team = 0
+            for player in range(len(self.player_pool)):
+                player_teams[team] += [self.player_pool[player]]
+                team += 1
+                if team >= self.team_amount:
+                    team = 0
         for player_list in player_teams:
             self.add_team(Team(player_list))
 
@@ -152,3 +157,10 @@ class Tournament:
         for teams in self.team_list:
             text += str(teams)
         return text
+
+    def get_solution_embedding(self):
+        embedding = np.zeros(len(self.player_pool), dtype=int)
+        for team_num, team in enumerate(self.team_list):
+            for player in team.player_list:
+                embedding[player.player_id] = team_num
+        return embedding

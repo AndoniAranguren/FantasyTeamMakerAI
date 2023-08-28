@@ -6,6 +6,8 @@ POSITION_CONSTRAINS = [1, 2, 3, 1]      # This should have the same amount of it
 REFEREE_CONSTRAINS = [1, 1, 1, 2, 3]    # This should have the same amount of items as IMPORT_HASHTAGS_REFS
 FACTORS = [0.4, 0.4, 0.2]
 
+PATHS_SAVE_TEMP_FILES = "../data/tmp"
+
 # IMPORTING DATA FROM CSV
 #  - COL NAMES
 IMPORT_HASHTAG_NAME = "#NAME"
