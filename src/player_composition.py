@@ -47,10 +47,10 @@ class PlayerComposition:
 
     def constrains_genders(self):
         capped_genders = [x if x < CONSTRAIN_GENDER_RULE else CONSTRAIN_GENDER_RULE for x in self.get_gender_count()]
-        return sum(capped_genders) > PLAYER_MINIMUM
+        return sum(capped_genders) / PLAYER_MINIMUM - 1
 
     def constrains_team_subcompositions(self):
-        return self.get_team_subcompositions() is not None and len(self.get_team_subcompositions()) > 0
+        return 0 if self.get_team_subcompositions() is not None and len(self.get_team_subcompositions()) > 0 else -1
 
     def factor_team_amount(self):
         return len(self.team_subcompositions)
@@ -68,10 +68,10 @@ class PlayerComposition:
         return np.mean(team_experience)
 
     def __evaluate__(self):
-        if not self.constrains_genders():
-            return -2000, None
-        if not self.constrains_team_subcompositions():
-            return -1000, None
+        constr_gender = self.constrains_genders()
+        constr_team_subcomp = self.constrains_team_subcompositions()
+        if constr_gender < 0.0 or constr_team_subcomp < 0.0:
+            return constr_gender * 2 + constr_team_subcomp, None
 
         factor_team_amount = self.factor_team_amount()
         factor_player_dependency = self.factor_player_dependency()

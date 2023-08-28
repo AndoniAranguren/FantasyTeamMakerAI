@@ -83,16 +83,25 @@ def validate_referees(df):
     return df
 
 
+def cleanup_empties(df):
+    return df.dropna(subset=[config.IMPORT_HASHTAG_NAME, config.IMPORT_HASHTAG_GENDER])
+
+
 def read_players(csv_path):
-    df = pd.read_csv(csv_path)
+    try:
+        df = pd.read_csv(csv_path, sep=";")
+    except:
+        df = pd.read_csv(csv_path, sep=";", encoding="latin1")
     for required_col in config.IMPORT_HASHTAGS:
         df[required_col] = None
 
     df = cleanup_multilanguage_hashtags(df)
+    df = cleanup_empties(df)
     df = cleanup_genders(df)
     df = cleanup_experience(df)
     df = cleanup_positions(df)
     df = validate_referees(df)
+    df = df.sort_values(by=config.IMPORT_HASHTAGS_REFS, ascending=False)
 
     player_pool = []
     for index, row in df.iterrows():

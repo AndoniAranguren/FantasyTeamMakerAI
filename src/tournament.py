@@ -91,12 +91,14 @@ class Tournament:
             if len(negs) > 0:
                 perc_teams_not_fulfilling = len(negs)/len(self.team_list)
                 constr_left_to_fulfill = len(constr_list) - i
-                return - perc_teams_not_fulfilling - constr_left_to_fulfill/len(constr_list)
+                constrain_score = - constr_left_to_fulfill/len(constr_list)*10
+                score = constrain_score - perc_teams_not_fulfilling
+                return score
         return 0
 
     def evaluate_tournament(self):
         # Constrain analysis
-        score = self.evaluate_constrains() * 1
+        score = self.evaluate_constrains() * 100
         if score < 0:
             return score, None
 
@@ -108,7 +110,7 @@ class Tournament:
 
         constrains_not_fullfilled = [scores[0] for scores in scores_team_comp if scores[0] != 0]
         if len(constrains_not_fullfilled) > 0:
-            return np.average(constrains_not_fullfilled), None
+            return np.sum(constrains_not_fullfilled), None
 
         factors = np.array([scores[1] for scores in scores_team_comp]).T
 
@@ -124,10 +126,15 @@ class Tournament:
 
     def initialize_state(self):
         players_per_team = round(len(self.player_pool)/self.team_amount)
-        for i in range(self.team_amount - len(self.team_list)):
-            low = players_per_team*i
-            up = players_per_team*(i+1)
-            self.add_team(Team(self.player_pool[low:up]))
+        team = 0
+        player_teams = [[] for x in range(self.team_amount)]
+        for player in range(len(self.player_pool)):
+            player_teams[team] += [self.player_pool[player]]
+            team += 1
+            if team >= self.team_amount:
+                team = 0
+        for player_list in player_teams:
+            self.add_team(Team(player_list))
 
     def characterize_tournament(self):
         characterization = [0]*len(self.player_pool)

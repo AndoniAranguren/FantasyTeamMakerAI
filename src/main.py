@@ -116,15 +116,18 @@ def play_crossings(new_league_list: [[[Tournament, float]]], autocross: bool = F
 
 def generate_league(player_pool, team_amount, leagues_movements, clubs_per_league):
     leagues = len(leagues_movements)
-    club_list = [Tournament(player_pool, team_amount, c) for c in range(clubs_per_league * leagues)]
+    club_list = []
+    for c in range(clubs_per_league * leagues):
+        club_list += [Tournament(player_pool, team_amount, c)]
+        np.random.shuffle(player_pool)
     club_list = sort_by_performance([[club, club.evaluate_tournament()] for club in club_list])
-    league_list = [club_list[clubs_per_league * i:clubs_per_league * (i + 1)] for i in range(clubs_per_league - 1)]
+    league_list = [club_list[clubs_per_league * i:clubs_per_league * (i + 1)] for i in range(leagues)]
     return league_list
 
 
 def optimize_tournament_league_metaheuristic(player_pool, team_amount: int,
                                              leagues_movements: [int], clubs_per_league: int,
-                                             iterations: int = 1000, stop_same: int = 500,
+                                             iterations: int = 10000, stop_same: int = 250,
                                              autocross: bool = False):
     global analysis
     analysis = Analysis(["League", "Club rank"])
@@ -198,14 +201,18 @@ def optimize_tournament(player_pool, team_amount: int, iterations: int = 1000, m
 
 
 def main():
-    team_amount = 3
-    rnd_seed = 100
-    iterations = 1500
-    stop_same = 50
-    leagues_movements = [1, 5, 10]
-    clubs_per_league = 4
+    rnd_seed = 43
+    iterations = 10000
+    stop_same = 250
+    leagues_movements = [1, 3, 5, 10]
+    clubs_per_league = 5
     autocross = False
-    player_pool, df = import_export_tool.read_players("./data/form emerald.csv")
+    # team_amount = 3
+    # player_pool, df = import_export_tool.read_players("./data/form emerald.csv")
+    team_amount = 9
+    player_pool, df = import_export_tool.read_players("../data/Guardians of Bologna - vol4 - With Irene as cap.csv")
+    # team_amount = 8
+    # player_pool, df = import_export_tool.read_players("../data/Guardians of Bologna - vol4 - Without Irene as cap.csv")
     player_amount = df.shape[0]
     # player_pool = generate_player_pool(player_amount, rnd_seed=rnd_seed)
     # best_tournament_setting = optimize_tournament(player_pool, team_amount, iterations=iterations)
